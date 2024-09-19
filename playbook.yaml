@@ -1,0 +1,66 @@
+- hosts: localhost
+  become: yes
+  tasks:
+
+    - name: Update the repository cache 
+      ansible.builtin.apt:
+        update_cache: yes
+        cache_valid_time: 3600
+        
+    - name: Install dependencies
+      apt:
+        name: "{{ packages }}"
+        state: present
+        update_cache: yes
+      vars:
+        packages:
+        - openjdk-17-jre
+
+    - name: Add jenkins user and append to admin group
+      user:
+        name: jenkins
+        shell: /bin/bash
+        password: ''
+        groups: admin
+        append: yes
+    
+    - name: Allow 'jenkins' user to have passwordless sudo
+      lineinfile:
+        dest: /etc/sudoers
+        state: present
+        line: 'jenkins ALL=(ALL) NOPASSWD:ALL'
+        validate: 'visudo -cf %s'
+
+    # - name: Import a key from a url
+    #   ansible.builtin.apt_key:
+    #     url: https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key
+    #     state: present
+    - name: add key for repo
+      shell: curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key | sudo tee \  /usr/share/keyrings/jenkins-keyring.asc > /dev/null
+    
+
+    - name: download jenkins binary
+      shell: echo deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] \  https://pkg.jenkins.io/debian-stable binary/ | sudo tee \  /etc/apt/sources.list.d/jenkins.list > /dev/null
+
+    - name: Update apt cache
+      apt: update_cache=yes 
+
+    - name: install jenkins
+      apt:
+        name: jenkins
+        state: present
+        update_cache: yes
+
+    - name: Just force systemd to re-execute itself
+      ansible.builtin.systemd:
+        daemon_reload: yes
+        scope: system
+
+    - name: start service jenkins
+      ansible.builtin.systemd:
+        name: jenkins
+        state: started
+        scope: system
+
+    - name: get password
+      command: cat /var/lib/jenkins/secrets/initialAdminPassword

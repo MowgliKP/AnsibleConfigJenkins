@@ -1,0 +1,9 @@
+all:
+  children:
+    jenkins:
+      hosts:
+        10.0.1.20:
+  vars:
+    ansible_user: ubuntu
+    ansible_ssh_private_key_file: "~/.ssh/myKey"
+    ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
